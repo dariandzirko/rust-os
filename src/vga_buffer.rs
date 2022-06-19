@@ -10,7 +10,7 @@ pub enum Color {
     Green = 2,
     Cyan = 3,
     Red = 4,
-    Magenta = 5, 
+    Magenta = 5,
     Brown = 6,
     LightGray = 7,
     DarkGray = 8,
@@ -29,11 +29,13 @@ pub enum Color {
 struct ColorCode(u8);
 
 impl ColorCode {
+    /// Create a new `ColorCode` with the given foreground and background colors.
     fn new(foreground: Color, background: Color) -> ColorCode {
-        ColorCode( (background as u8) << 4 | (foreground as u8))
+        ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
 
+/// A screen character in the VGA text buffer, consisting of an ASCII character and a `ColorCode`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
@@ -41,12 +43,15 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
+/// The height of the text buffer (normally 25 lines).
 const BUFFER_HEIGHT: usize = 25;
+/// The width of the text buffer (normally 80 columns).
 const BUFFER_WIDTH: usize = 80;
 
+/// A structure representing the VGA text buffer.
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_HEIGHT]; BUFFER_WIDTH],
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 pub struct  Writer {
@@ -77,32 +82,7 @@ impl Writer {
         }
     }
 
-    fn new_line(&mut self) {
-
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_HEIGHT {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character  );
-            }
-
-        }
-        self.clear_row(BUFFER_HEIGHT - 1);
-        self.column_position = 0;
-
-    }
-
-    fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_character: b' ',
-            color_code: self.color_code,
-        };
-
-        for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
-        }
-    }
-
-    pub fn write_string(&mut self, s: &str) {
+    fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
                 // printable ASCII byte or newline
@@ -110,6 +90,27 @@ impl Writer {
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
+        }
+    }
+
+    fn new_line(&mut self) {
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(character);
+            }
+        }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_position = 0;
+    }
+
+    fn clear_row(&mut self, row: usize) {
+        let blank = ScreenChar {
+            ascii_character: b' ',
+            color_code: self.color_code,
+        };
+        for col in 0..BUFFER_WIDTH {
+            self.buffer.chars[row][col].write(blank);
         }
     }
 
@@ -127,8 +128,8 @@ pub fn print_something() {
     let mut writer = Writer {
         column_position: 0,
         color_code: ColorCode::new(Color::Green, Color::Black),
-        buffer: unsafe {&mut *(0xb8000 as *mut Buffer) },
-    };
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+       };
 
     writer.write_byte(b'H');
     writer.write_string("ello!");
