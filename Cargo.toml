@@ -29,3 +29,7 @@ uart_16550 = "0.2.0"
 
 [profile.release]
 panic = "abort"
+
+[[test]]
+name = "should_panic"
+harness = false
